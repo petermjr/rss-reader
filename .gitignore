@@ -1,7 +1,34 @@
+# Dependencies
+/vendor/
+/frontend/node_modules/
+/frontend/.pnp
+/frontend/.pnp.js
+
+# Testing
+/coverage
+/frontend/coverage
+
+# Production
+/frontend/build
+/frontend/dist
+
+# Misc
+.DS_Store
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+.env.backend
+
+# Logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+*.log
+
+# IDE
 .idea/
 .vscode/
-/coverage/
-/vendor/
-/logs/*
-!/logs/README.md
-.phpunit.result.cache
+*.swp
+*.swo

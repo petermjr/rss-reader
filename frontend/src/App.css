@@ -1,0 +1,37 @@
+.App {
+  min-height: 100vh;
+  background-color: #f8f9fa;
+}
+
+.container {
+  padding: 20px;
+}
+
+.card {
+  margin-bottom: 20px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.card-title {
+  color: #333;
+  margin-bottom: 15px;
+}
+
+.btn-group {
+  margin-top: 10px;
+}
+
+.feed-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 20px;
+  padding: 20px;
+}
+
+.feed-item {
+  transition: transform 0.2s;
+}
+
+.feed-item:hover {
+  transform: translateY(-2px);
+} 
