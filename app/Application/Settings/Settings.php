@@ -4,25 +4,34 @@ declare(strict_types=1);
 
 namespace App\Application\Settings;
 
+use App\Contracts\SettingsInterface;
+
 class Settings implements SettingsInterface
 {
+    /**
+     * @var array
+     */
     private array $settings;
 
+    /**
+     * Settings constructor.
+     *
+     * @param array $settings
+     */
     public function __construct(array $settings)
     {
         $this->settings = $settings;
     }
 
-    public function get(string $key = '', $default = null)
+    /**
+     * Get a setting value
+     *
+     * @param string $key The setting key
+     * @param mixed $default The default value if setting not found
+     * @return mixed The setting value
+     */
+    public function get(string $key, $default = null)
     {
-        if (empty($key)) {
-            return $this->settings;
-        }
-
-        if (isset($this->settings[$key])) {
-            return $this->settings[$key];
-        }
-
-        return $default;
+        return $this->settings[$key] ?? $default;
     }
 } 

@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-use App\Application\Settings\SettingsInterface;
+use App\Contracts\SettingsInterface;
 use App\Services\FeedService;
 use DI\ContainerBuilder;
 use Monolog\Handler\StreamHandler;

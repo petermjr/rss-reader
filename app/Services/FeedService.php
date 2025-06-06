@@ -9,42 +9,28 @@ use App\Models\FeedEntry;
 use Doctrine\ORM\EntityManager;
 use Doctrine\ORM\EntityRepository;
 use Doctrine\ORM\QueryBuilder;
-use SimplePie\SimplePie;
 use Exception;
-use App\Responses\FeedPaginatedResponse;
+use SimplePie\SimplePie;
 
 class FeedService
 {
     private EntityManager $entityManager;
     private EntityRepository $feedRepository;
     private EntityRepository $feedEntryRepository;
+    private SimplePie $simplePie;
 
     public function __construct(EntityManager $entityManager)
     {
         $this->entityManager = $entityManager;
         $this->feedRepository = $entityManager->getRepository(Feed::class);
         $this->feedEntryRepository = $entityManager->getRepository(FeedEntry::class);
+        $this->simplePie = new SimplePie();
     }
 
     public function getPosts(array $queryParams): array
     {
-        $page = max(1, (int) ($queryParams['page'] ?? 1));
-        $perPage = max(1, (int) ($queryParams['perPage'] ?? 10));
-        $offset = ($page - 1) * $perPage;
-
         $queryBuilder = $this->createPostsQueryBuilder();
-        $this->applyPostsFilters($queryBuilder, $queryParams);
-        $this->applyPagination($queryBuilder, $perPage, $offset);
-
-        $total = $this->getTotalPostsCount($queryParams);
-        $entries = $queryBuilder->getQuery()->getResult();
-        
-        return (new FeedPaginatedResponse(
-            $entries,
-            $total,
-            $perPage,
-            $page
-        ))->toArray();
+        return (new FeedPaginator($queryBuilder))->paginate($queryParams);
     }
 
     private function createPostsQueryBuilder(): QueryBuilder
@@ -56,244 +42,117 @@ class FeedService
             ->orderBy('e.publishedAt', 'DESC');
     }
 
-    private function applyPostsFilters(QueryBuilder $queryBuilder, array $queryParams): void
+    private function createFeedEntry(Feed $feed, array $item): ?FeedEntry
     {
-        if (!empty($queryParams['feedId'])) {
-            $queryBuilder->andWhere('e.feed = :feedId')
-                ->setParameter('feedId', (int) $queryParams['feedId']);
+        if (empty($item['url'])) {
+            return null;
         }
 
-        if (!empty($queryParams['startDate'])) {
-            $queryBuilder->andWhere('e.publishedAt >= :startDate')
-                ->setParameter('startDate', new \DateTime($queryParams['startDate']));
-        }
-
-        if (!empty($queryParams['endDate'])) {
-            $queryBuilder->andWhere('e.publishedAt <= :endDate')
-                ->setParameter('endDate', new \DateTime($queryParams['endDate']));
-        }
-
-        if (!empty($queryParams['search'])) {
-            $queryBuilder->andWhere(
-                $queryBuilder->expr()->orX(
-                    $queryBuilder->expr()->like('e.title', ':search'),
-                    $queryBuilder->expr()->like('e.description', ':search')
-                )
-            )->setParameter('search', '%' . $queryParams['search'] . '%');
-        }
-
-        if (isset($queryParams['isRead'])) {
-            $queryBuilder->andWhere('e.isRead = :isRead')
-                ->setParameter('isRead', (bool) $queryParams['isRead']);
-        }
+        return new FeedEntry(
+            $feed,
+            $item['title'],
+            $item['url'],
+            $item['description'],
+            $item['published_at'],
+            $item['enclosure_url'] ?? null,
+            $item['enclosure_type'] ?? null,
+            $item['enclosure_length'] ?? null
+        );
     }
 
-    private function applyPagination(QueryBuilder $queryBuilder, int $perPage, int $offset): void
-    {
-        $queryBuilder
-            ->setMaxResults($perPage)
-            ->setFirstResult($offset);
-    }
-
-    private function getTotalPostsCount(array $queryParams): int
-    {
-        $countQueryBuilder = $this->createPostsQueryBuilder();
-        $this->applyPostsFilters($countQueryBuilder, $queryParams);
-        
-        $countQueryBuilder
-            ->select('COUNT(e.id)')
-            ->resetDQLPart('orderBy')
-            ->setMaxResults(null)
-            ->setFirstResult(null);
-
-        return (int) $countQueryBuilder->getQuery()->getSingleScalarResult();
-    }
-
-    public function saveFeedEntries(Feed $feed, SimplePie $simplePie): void
-    {
-        // Remove existing entries
-        foreach ($feed->getEntries() as $entry) {
-            $this->entityManager->remove($entry);
-        }
-        $feed->getEntries()->clear();
-
-        // Save new entries
-        foreach ($simplePie->get_items() as $item) {
-            $enclosure = $item->get_enclosure();
-            $link = $item->get_link();
-            
-            // If link is empty and we have an enclosure, use the enclosure link
-            if (empty($link) && $enclosure) {
-                $link = $enclosure->get_link();
-            }
-            
-            // Skip if we still don't have a valid link
-            if (empty($link)) {
-                continue;
-            }
-
-            $entry = new FeedEntry(
-                $feed,
-                $item->get_title() ?: 'Untitled Entry',
-                $link,
-                $item->get_description() ?: '',
-                $item->get_date('Y-m-d H:i:s') ?: date('Y-m-d H:i:s'),
-                $enclosure ? $enclosure->get_link() : null,
-                $enclosure ? $enclosure->get_type() : null,
-                $enclosure ? $enclosure->get_length() : null
-            );
-            $feed->addEntry($entry);
-            $this->entityManager->persist($entry);
-        }
-    }
-
-    public function refreshFeed(Feed $feed): array
+    public function saveFeedData(array $feedData): array
     {
         try {
-            $simplePie = new SimplePie();
-            $simplePie->set_feed_url($feed->getUrl());
-            $simplePie->enable_cache(false);
-            $simplePie->init();
-
-            if ($simplePie->error()) {
+            // Check if feed already exists
+            $existingFeed = $this->feedRepository->findOneBy(['url' => $feedData['url']]);
+            if ($existingFeed) {
                 return [
-                    'status' => 'error',
-                    'error' => 'Failed to fetch feed',
-                    'feed' => $feed->toArray()
+                    'status' => 400,
+                    'error' => 'Feed already exists'
                 ];
             }
 
-            // Update feed information
-            $feed->setTitle($simplePie->get_title() ?: 'Untitled Feed');
-            $feed->setDescription($simplePie->get_description() ?: '');
-            $feed->setLastUpdated(date('Y-m-d H:i:s'));
+            // Create new feed
+            $feed = new Feed(
+                $feedData['title'],
+                $feedData['url'],
+                $feedData['description'],
+                $feedData['last_updated']
+            );
             $this->entityManager->persist($feed);
 
-            // Process new entries
-            $newEntriesCount = 0;
-            foreach ($simplePie->get_items() as $item) {
-                $link = $item->get_link();
-                if (empty($link) && $item->get_enclosure()) {
-                    $link = $item->get_enclosure()->get_link();
+            // Create feed entries
+            foreach ($feedData['items'] as $item) {
+                $entry = $this->createFeedEntry($feed, $item);
+                if ($entry) {
+                    $feed->addEntry($entry);
+                    $this->entityManager->persist($entry);
+                }
+            }
+
+            $this->entityManager->flush();
+
+            return [
+                'status' => 200,
+                'feed' => $feed->toArray()
+            ];
+        } catch (Exception $e) {
+            return [
+                'status' => 500,
+                'error' => 'Failed to save feed: ' . $e->getMessage()
+            ];
+        }
+    }
+
+    public function processFeedsAsync(array $urls): array
+    {
+        $results = [];
+        $processes = [];
+        $tempDir = sys_get_temp_dir();
+        $scriptPath = __DIR__ . '/../Console/ProcessFeed.php';
+        
+        // Start a process for each URL
+        foreach ($urls as $url) {
+            $tempFile = $tempDir . '/feed_' . md5($url) . '.json';
+            
+            // Execute the script in the background
+            $command = sprintf(
+                'php %s %s %s > /dev/null 2>&1 & echo $!',
+                escapeshellarg($scriptPath),
+                escapeshellarg($url),
+                escapeshellarg($tempFile)
+            );
+            
+            $pid = exec($command);
+            $processes[$url] = [
+                'pid' => $pid,
+                'tempFile' => $tempFile
+            ];
+        }
+        
+        // Wait for all processes to complete
+        foreach ($processes as $url => $process) {
+            while (file_exists("/proc/{$process['pid']}")) {
+                usleep(100000); // Sleep for 0.1 seconds
+            }
+            
+            // Read the result
+            if (file_exists($process['tempFile'])) {
+                $result = json_decode(file_get_contents($process['tempFile']), true);
+                
+                // If feed was successfully processed, save it to database
+                if ($result['status'] === 200 && isset($result['feed'])) {
+                    $saveResult = $this->saveFeedData($result['feed']);
+                    $result = array_merge($result, $saveResult);
                 }
                 
-                if (empty($link)) {
-                    continue;
-                }
-
-                // Check if entry already exists
-                $existingEntry = $this->feedEntryRepository->findOneBy(['url' => $link]);
-                if ($existingEntry) {
-                    continue;
-                }
-
-                $entry = new FeedEntry(
-                    $feed,
-                    $item->get_title() ?: 'Untitled Entry',
-                    $link,
-                    $item->get_description() ?: '',
-                    $item->get_date('Y-m-d H:i:s') ?: date('Y-m-d H:i:s'),
-                    $item->get_enclosure() ? $item->get_enclosure()->get_link() : null,
-                    $item->get_enclosure() ? $item->get_enclosure()->get_type() : null,
-                    $item->get_enclosure() ? $item->get_enclosure()->get_length() : null
-                );
-                $this->entityManager->persist($entry);
-                $newEntriesCount++;
+                $results[] = $result;
+                
+                // Clean up temporary file
+                unlink($process['tempFile']);
             }
-            $this->entityManager->flush();
-
-            return [
-                'status' => 'success',
-                'message' => "Feed refreshed successfully. Added {$newEntriesCount} new entries.",
-                'feed' => $feed->toArray()
-            ];
-        } catch (Exception $e) {
-            return [
-                'status' => 'error',
-                'error' => 'Failed to refresh feed: ' . $e->getMessage(),
-                'feed' => $feed->toArray()
-            ];
         }
-    }
-
-    public function createFeed(string $url): array
-    {
-        // Check if feed already exists
-        $existingFeed = $this->feedRepository->findOneBy(['url' => $url]);
-        if ($existingFeed) {
-            return [
-                'error' => 'Feed already exists',
-                'status' => 400
-            ];
-        }
-
-        try {
-            $simplePie = new SimplePie();
-            $simplePie->set_feed_url($url);
-            $simplePie->enable_cache(false);
-            $simplePie->init();
-
-            if ($simplePie->error()) {
-                return [
-                    'error' => 'Invalid feed URL',
-                    'status' => 400
-                ];
-            }
-
-            $newFeed = new Feed(
-                $simplePie->get_title() ?: 'Untitled Feed',
-                $url,
-                $simplePie->get_description() ?: '',
-                date('Y-m-d H:i:s')
-            );
-            $this->entityManager->persist($newFeed);
-            $this->entityManager->flush();
-
-            // Process feed entries
-            $this->saveFeedEntries($newFeed, $simplePie);
-            $this->entityManager->flush();
-
-            return [
-                'feed' => $newFeed->toArray(),
-                'status' => 200
-            ];
-        } catch (Exception $e) {
-            return [
-                'error' => 'Failed to process feed: ' . $e->getMessage(),
-                'status' => 500
-            ];
-        }
-    }
-
-    public function updateFeed(Feed $feed): array
-    {
-        try {
-            $simplePie = new SimplePie();
-            $simplePie->set_feed_url($feed->getUrl());
-            $simplePie->enable_cache(false);
-            $simplePie->init();
-            $simplePie->handle_content_type();
-
-            if ($simplePie->error()) {
-                return [
-                    'error' => 'Failed to fetch feed',
-                    'status' => 400
-                ];
-            }
-
-            $this->entityManager->persist($feed);
-            $this->saveFeedEntries($feed, $simplePie);
-            $this->entityManager->flush();
-
-            return [
-                'message' => 'Feed updated successfully',
-                'status' => 200
-            ];
-        } catch (Exception $e) {
-            return [
-                'error' => 'Failed to update feed: ' . $e->getMessage(),
-                'status' => 500
-            ];
-        }
+        
+        return $results;
     }
 } 

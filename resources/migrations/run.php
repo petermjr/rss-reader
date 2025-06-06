@@ -7,7 +7,6 @@ require_once __DIR__ . '/bootstrap.php';
 $migrations = [
     'create_feeds_table.php',
     'create_feed_entries_table.php',
-    'add_enclosure_fields_to_feed_entries.php',
 ];
 
 foreach ($migrations as $migrationFile) {

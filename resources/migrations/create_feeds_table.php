@@ -5,6 +5,10 @@ declare(strict_types=1);
 use App\Database\Database;
 
 return function () {
+    // Drop tables if they exist (in correct order due to foreign key constraints)
+    Database::execute("DROP TABLE IF EXISTS feed_entries");
+    Database::execute("DROP TABLE IF EXISTS feeds");
+    
     $sql = "CREATE TABLE IF NOT EXISTS feeds (
         id INT AUTO_INCREMENT PRIMARY KEY,
         title VARCHAR(255) NOT NULL,

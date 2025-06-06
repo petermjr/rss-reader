@@ -1,18 +1,52 @@
-version: '3.7'
-
-volumes:
-    logs:
-        driver: local
+version: '3.8'
 
 services:
-    slim:
-        image: php:7-alpine
-        working_dir: /var/www
-        command: php -S 0.0.0.0:8080 -t public
-        environment:
-            docker: "true"
-        ports:
-            - "8080:8080"
-        volumes:
-            - .:/var/www
-            - logs:/var/www/logs
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: rss-reader-app
+    restart: unless-stopped
+    working_dir: /var/www
+    ports:
+      - "8080:8080"
+      - "3000:3000"
+    volumes:
+      - ./:/var/www
+    networks:
+      - rss-network
+    depends_on:
+      - db
+    entrypoint: ["/usr/local/bin/entrypoint.sh"]
+    environment:
+      DB_HOST: db
+      DB_NAME: rss_reader
+      DB_USER: root
+      DB_PASS: root
+      DB_PORT: 3306
+
+  db:
+    image: mysql:8.0
+    container_name: rss-reader-db
+    restart: unless-stopped
+    environment:
+      MYSQL_DATABASE: rss_reader
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_USER: root
+      MYSQL_PASSWORD: root
+      SERVICE_TAGS: dev
+      SERVICE_NAME: mysql
+    volumes:
+      - dbdata:/var/lib/mysql
+    ports:
+      - "3306:3306"
+    networks:
+      - rss-network
+
+networks:
+  rss-network:
+    driver: bridge
+
+volumes:
+  dbdata:
+    driver: local
