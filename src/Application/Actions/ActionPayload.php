@@ -4,9 +4,7 @@ declare(strict_types=1);
 
 namespace App\Application\Actions;
 
-use JsonSerializable;
-
-class ActionPayload implements JsonSerializable
+class ActionPayload
 {
     private int $statusCode;
 
@@ -44,20 +42,4 @@ class ActionPayload implements JsonSerializable
     {
         return $this->error;
     }
-
-    #[\ReturnTypeWillChange]
-    public function jsonSerialize(): array
-    {
-        $payload = [
-            'statusCode' => $this->statusCode,
-        ];
-
-        if ($this->data !== null) {
-            $payload['data'] = $this->data;
-        } elseif ($this->error !== null) {
-            $payload['error'] = $this->error;
-        }
-
-        return $payload;
-    }
-}
+} 

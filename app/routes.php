@@ -2,8 +2,6 @@
 
 declare(strict_types=1);
 
-use App\Application\Actions\User\ListUsersAction;
-use App\Application\Actions\User\ViewUserAction;
 use App\Controllers\FeedController;
 use Psr\Http\Message\ResponseInterface as Response;
 use Psr\Http\Message\ServerRequestInterface as Request;
@@ -27,14 +25,11 @@ return function (App $app) {
             $group->get('', [FeedController::class, 'index']);
             $group->get('/{id}', [FeedController::class, 'show']);
             $group->post('', [FeedController::class, 'store']);
-            $group->put('/{id}', [FeedController::class, 'update']);
-            $group->delete('/{id}', [FeedController::class, 'destroy']);
+            $group->post('/{id}/refresh', [FeedController::class, 'refresh']);
+            $group->delete('/{id}', [FeedController::class, 'delete']);
         });
 
-        // User routes
-        $group->group('/users', function (Group $group) {
-            $group->get('', ListUsersAction::class);
-            $group->get('/{id}', ViewUserAction::class);
-        });
+        // Posts route
+        $group->get('/posts', [FeedController::class, 'getPosts']);
     });
 };

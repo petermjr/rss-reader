@@ -4,115 +4,94 @@ declare(strict_types=1);
 
 namespace App\Models;
 
-use App\Database\Database;
+use Doctrine\ORM\Mapping as ORM;
+use Doctrine\Common\Collections\ArrayCollection;
+use Doctrine\Common\Collections\Collection;
 
+#[ORM\Entity]
+#[ORM\Table(name: 'feeds')]
 class Feed
 {
+    #[ORM\Id]
+    #[ORM\Column(type: 'integer')]
+    #[ORM\GeneratedValue]
     private ?int $id = null;
-    private string $title;
-    private string $url;
-    private ?string $description;
-    private ?string $lastUpdated;
-    private array $entries = [];
 
-    public function __construct(
-        string $title,
-        string $url,
-        ?string $description = null,
-        ?string $lastUpdated = null
-    ) {
+    #[ORM\Column(type: 'string', length: 255)]
+    private string $title;
+
+    #[ORM\Column(type: 'string', length: 255, unique: true)]
+    private string $url;
+
+    #[ORM\Column(type: 'text')]
+    private string $description;
+
+    #[ORM\Column(name: 'last_updated', type: 'datetime')]
+    private \DateTime $lastUpdated;
+
+    #[ORM\OneToMany(targetEntity: FeedEntry::class, mappedBy: 'feed', cascade: ['persist', 'remove'])]
+    private Collection $entries;
+
+    public function __construct(string $title, string $url, string $description, string $lastUpdated)
+    {
         $this->title = $title;
         $this->url = $url;
         $this->description = $description;
-        $this->lastUpdated = $lastUpdated;
+        $this->lastUpdated = new \DateTime($lastUpdated);
+        $this->entries = new ArrayCollection();
     }
 
-    public static function find(int $id): ?self
+    public function getId(): ?int
     {
-        $result = Database::query(
-            "SELECT * FROM feeds WHERE id = ?",
-            [$id]
-        );
+        return $this->id;
+    }
 
-        if (empty($result)) {
-            return null;
+    public function getTitle(): string
+    {
+        return $this->title;
+    }
+
+    public function getUrl(): string
+    {
+        return $this->url;
+    }
+
+    public function getDescription(): string
+    {
+        return $this->description;
+    }
+
+    public function getLastUpdated(): \DateTime
+    {
+        return $this->lastUpdated;
+    }
+
+    public function setTitle(string $title): void
+    {
+        $this->title = $title;
+    }
+
+    public function setDescription(string $description): void
+    {
+        $this->description = $description;
+    }
+
+    public function setLastUpdated(string $lastUpdated): void
+    {
+        $this->lastUpdated = new \DateTime($lastUpdated);
+    }
+
+    public function getEntries(): Collection
+    {
+        return $this->entries;
+    }
+
+    public function addEntry(FeedEntry $entry): void
+    {
+        if (!$this->entries->contains($entry)) {
+            $entry->setFeed($this);
+            $this->entries->add($entry);
         }
-
-        $feed = new self(
-            $result[0]['title'],
-            $result[0]['url'],
-            $result[0]['description'],
-            $result[0]['last_updated']
-        );
-        $feed->id = $result[0]['id'];
-        $feed->loadEntries();
-        return $feed;
-    }
-
-    public static function all(): array
-    {
-        $feeds = [];
-        $results = Database::query("SELECT * FROM feeds");
-
-        foreach ($results as $row) {
-            $feed = new self(
-                $row['title'],
-                $row['url'],
-                $row['description'],
-                $row['last_updated']
-            );
-            $feed->id = $row['id'];
-            $feed->loadEntries();
-            $feeds[] = $feed;
-        }
-
-        return $feeds;
-    }
-
-    public function save(): void
-    {
-        if ($this->id === null) {
-            $this->insert();
-        } else {
-            $this->update();
-        }
-    }
-
-    private function insert(): void
-    {
-        $this->id = Database::execute(
-            "INSERT INTO feeds (title, url, description, last_updated) VALUES (?, ?, ?, ?)",
-            [$this->title, $this->url, $this->description, $this->lastUpdated]
-        );
-    }
-
-    private function update(): void
-    {
-        Database::execute(
-            "UPDATE feeds SET title = ?, url = ?, description = ?, last_updated = ? WHERE id = ?",
-            [$this->title, $this->url, $this->description, $this->lastUpdated, $this->id]
-        );
-    }
-
-    public function delete(): void
-    {
-        if ($this->id !== null) {
-            Database::execute("DELETE FROM feeds WHERE id = ?", [$this->id]);
-        }
-    }
-
-    private function loadEntries(): void
-    {
-        if ($this->id === null) {
-            return;
-        }
-
-        $results = Database::query(
-            "SELECT * FROM feed_entries WHERE feed_id = ?",
-            [$this->id]
-        );
-
-        $this->entries = $results;
     }
 
     public function toArray(): array
@@ -122,8 +101,8 @@ class Feed
             'title' => $this->title,
             'url' => $this->url,
             'description' => $this->description,
-            'last_updated' => $this->lastUpdated,
-            'entries' => $this->entries
+            'last_updated' => $this->lastUpdated->format('Y-m-d H:i:s'),
+            'entries' => $this->entries->map(fn(FeedEntry $entry) => $entry->toArray())->toArray()
         ];
     }
 } 

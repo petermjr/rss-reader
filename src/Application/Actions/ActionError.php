@@ -4,9 +4,7 @@ declare(strict_types=1);
 
 namespace App\Application\Actions;
 
-use JsonSerializable;
-
-class ActionError implements JsonSerializable
+class ActionError
 {
     public const BAD_REQUEST = 'BAD_REQUEST';
     public const INSUFFICIENT_PRIVILEGES = 'INSUFFICIENT_PRIVILEGES';
@@ -19,10 +17,9 @@ class ActionError implements JsonSerializable
     public const VERIFICATION_ERROR = 'VERIFICATION_ERROR';
 
     private string $type;
+    private string $description;
 
-    private ?string $description;
-
-    public function __construct(string $type, ?string $description = null)
+    public function __construct(string $type, string $description)
     {
         $this->type = $type;
         $this->description = $description;
@@ -39,23 +36,14 @@ class ActionError implements JsonSerializable
         return $this;
     }
 
-    public function getDescription(): ?string
+    public function getDescription(): string
     {
         return $this->description;
     }
 
-    public function setDescription(?string $description = null): self
+    public function setDescription(string $description): self
     {
         $this->description = $description;
         return $this;
     }
-
-    #[\ReturnTypeWillChange]
-    public function jsonSerialize(): array
-    {
-        return [
-            'type' => $this->type,
-            'description' => $this->description,
-        ];
-    }
-}
+} 

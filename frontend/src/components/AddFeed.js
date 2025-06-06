@@ -18,7 +18,11 @@ function AddFeed() {
       await axios.post('/api/feeds', { url });
       navigate('/');
     } catch (err) {
-      setError('Failed to add feed. Please check the URL and try again.');
+      if (err.response?.data?.error) {
+        setError(err.response.data.error);
+      } else {
+        setError('Failed to add feed. Please check the URL and try again.');
+      }
       setLoading(false);
     }
   };

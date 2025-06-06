@@ -1,14 +1,11 @@
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { Container } from 'react-bootstrap';
-import 'bootstrap/dist/css/bootstrap.min.css';
-import './App.css';
-
-// Components
-import Navbar from './components/Navbar';
 import FeedList from './components/FeedList';
 import FeedDetail from './components/FeedDetail';
 import AddFeed from './components/AddFeed';
+import PostsPreview from './components/PostsPreview';
+import Navbar from './components/Navbar';
 
 function App() {
   return (
@@ -17,9 +14,10 @@ function App() {
         <Navbar />
         <Container className="mt-4">
           <Routes>
-            <Route path="/" element={<FeedList />} />
-            <Route path="/feed/:id" element={<FeedDetail />} />
-            <Route path="/add" element={<AddFeed />} />
+            <Route path="/" element={<PostsPreview />} />
+            <Route path="/feeds" element={<FeedList />} />
+            <Route path="/feeds/add" element={<AddFeed />} />
+            <Route path="/feeds/:id" element={<FeedDetail />} />
           </Routes>
         </Container>
       </div>
