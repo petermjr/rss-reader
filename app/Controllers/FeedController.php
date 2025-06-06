@@ -41,15 +41,33 @@ class FeedController
     public function store(Request $request, Response $response): Response
     {
         $data = $request->getParsedBody();
-        if (!isset($data['url'])) {
-            $response->getBody()->write(json_encode(['error' => 'URL is required']));
+        if (!isset($data['urls']) || !is_array($data['urls'])) {
+            $response->getBody()->write(json_encode(['error' => 'URLs array is required']));
             return $response->withStatus(400)->withHeader('Content-Type', 'application/json');
         }
 
-        $result = $this->feedService->createFeed($data['url']);
+        $results = [];
+        $hasErrors = false;
+
+        foreach ($data['urls'] as $url) {
+            $result = $this->feedService->createFeed($url);
+            $results[] = [
+                'url' => $url,
+                'status' => $result['status'],
+                'message' => $result['message'] ?? $result['error'] ?? 'Unknown error',
+                'feed' => $result['feed'] ?? null
+            ];
+
+            if ($result['status'] >= 400) {
+                $hasErrors = true;
+            }
+        }
         
-        $response->getBody()->write(json_encode($result));
-        return $response->withStatus($result['status'])->withHeader('Content-Type', 'application/json');
+        $response->getBody()->write(json_encode([
+            'results' => $results,
+            'status' => $hasErrors ? 400 : 201
+        ]));
+        return $response->withStatus($hasErrors ? 400 : 201)->withHeader('Content-Type', 'application/json');
     }
 
     public function update(Request $request, Response $response, array $args): Response

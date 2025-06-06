@@ -120,12 +120,24 @@ class FeedService
         // Save new entries
         foreach ($simplePie->get_items() as $item) {
             $enclosure = $item->get_enclosure();
+            $link = $item->get_link();
+            
+            // If link is empty and we have an enclosure, use the enclosure link
+            if (empty($link) && $enclosure) {
+                $link = $enclosure->get_link();
+            }
+            
+            // Skip if we still don't have a valid link
+            if (empty($link)) {
+                continue;
+            }
+
             $entry = new FeedEntry(
                 $feed,
-                $item->get_title(),
-                $item->get_link(),
-                $item->get_description(),
-                $item->get_date('Y-m-d H:i:s'),
+                $item->get_title() ?: 'Untitled Entry',
+                $link,
+                $item->get_description() ?: '',
+                $item->get_date('Y-m-d H:i:s') ?: date('Y-m-d H:i:s'),
                 $enclosure ? $enclosure->get_link() : null,
                 $enclosure ? $enclosure->get_type() : null,
                 $enclosure ? $enclosure->get_length() : null
