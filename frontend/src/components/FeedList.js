@@ -154,14 +154,6 @@ const FeedList = () => {
                                                     'Refresh'
                                                 )}
                                             </Button>
-                                            <Button
-                                                as={Link}
-                                                to={`/feeds/${feed.id}`}
-                                                variant="outline-secondary"
-                                                size="sm"
-                                            >
-                                                View Posts
-                                            </Button>
                                         </div>
                                         <Button
                                             variant="outline-danger"

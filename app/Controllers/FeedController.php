@@ -38,17 +38,6 @@ class FeedController
         return $response->withHeader('Content-Type', 'application/json');
     }
 
-    public function show(Request $request, Response $response, array $args): Response
-    {
-        $feed = $this->feedRepository->find((int) $args['id']);
-        if (!$feed) {
-            $response->getBody()->write(json_encode(['error' => 'Feed not found']));
-            return $response->withStatus(404)->withHeader('Content-Type', 'application/json');
-        }
-        $response->getBody()->write(json_encode($feed->toArray()));
-        return $response->withHeader('Content-Type', 'application/json');
-    }
-
     public function store(Request $request, Response $response): Response
     {
         $data = $request->getParsedBody();

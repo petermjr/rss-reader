@@ -23,7 +23,6 @@ return function (App $app) {
         // RSS Feed routes
         $group->group('/feeds', function (Group $group) {
             $group->get('', [FeedController::class, 'index']);
-            $group->get('/{id}', [FeedController::class, 'show']);
             $group->post('', [FeedController::class, 'store']);
             $group->post('/{id}/refresh', [FeedController::class, 'refresh']);
             $group->delete('/{id}', [FeedController::class, 'delete']);

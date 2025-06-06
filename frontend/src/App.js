@@ -2,7 +2,6 @@ import React from 'react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { Container } from 'react-bootstrap';
 import FeedList from './components/FeedList';
-import FeedDetail from './components/FeedDetail';
 import AddFeed from './components/AddFeed';
 import PostsPreview from './components/PostsPreview';
 import Navbar from './components/Navbar';
@@ -17,7 +16,6 @@ function App() {
             <Route path="/" element={<PostsPreview />} />
             <Route path="/feeds" element={<FeedList />} />
             <Route path="/feeds/add" element={<AddFeed />} />
-            <Route path="/feeds/:id" element={<FeedDetail />} />
           </Routes>
         </Container>
       </div>
