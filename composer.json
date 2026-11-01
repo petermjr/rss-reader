@@ -30,7 +30,7 @@
         "monolog/monolog": "^2.8",
         "php-di/php-di": "^6.4",
         "simplepie/simplepie": "^1.8",
-        "slim/psr7": "^1.5",
+        "slim/psr7": "^1.8",
         "slim/slim": "^4.9",
         "symfony/cache": "^7.3",
         "vlucas/phpdotenv": "^5.4"
