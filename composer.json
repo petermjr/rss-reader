@@ -27,7 +27,7 @@
         "doctrine/annotations": "^2.0",
         "doctrine/dbal": "^4.2",
         "doctrine/orm": "^3.3",
-        "monolog/monolog": "^2.8",
+        "monolog/monolog": "^3.12",
         "php-di/php-di": "^6.4",
         "simplepie/simplepie": "^1.8",
         "slim/psr7": "^1.5",
